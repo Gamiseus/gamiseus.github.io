@@ -14,9 +14,9 @@ permissions:
 env:
   # Keep these four the same as in build.yml.
   BUILDER_REPO: Gamiseus/QuarterMaster
-  BUILDER_TAG: qm-index-builder-v1.1.0
-  BUILDER_ASSET: qm-index-builder.exe
-  BUILDER_SHA256: d21f3c1af51d983493bd5c1dc058be495548e673e7c75fa119f91a09e1fd76f6
+  BUILDER_TAG: qm-site-builder-v1.1.0
+  BUILDER_ASSET: qm-site-builder.exe
+  BUILDER_SHA256: c4824ecbd1252260c7a577b86d09826c69bb5cf72b2210954e863ffc96756c61
 
 jobs:
   check:

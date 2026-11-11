@@ -24,6 +24,12 @@ Versions are `Major.Minor.Patch`.
 - added `save_content` in `mod.json`: a mod's weapons become their base weapon while the mod is off
 - a test launch without mods does not mark or change saves
 - wiki: Saves and your mod
+- QuarterMaster's wrappers (save check, faction functions) are put back when a mod replaces the function during loading
+- a wrapper that was put back passes straight through, so its part runs once per call
+- launcher: Diagnostics has "Trace globals..." for a diagnostic test run
+- a diagnostic test run notes which mod sets each watched global, and counts who calls each watched function
+- the trace is kept with the run in the profile's run log; normal launches are not traced
+- wiki: diagnostic test run, wrappers QuarterMaster puts back
 - images are shown at a size separate from their resolution: a replacement takes the original's size
 - added `[sprites]` in `qm.toml`: `scale`, `like`, `size` per image
 - added `QM.Sprites` (`setSize`, `setScale`, `matchSize`, `reset`, `rawSize`, `scaleOf`)

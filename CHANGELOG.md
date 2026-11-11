@@ -1,6 +1,6 @@
 # Site changelog
 
-Changes to the site and to `qm-index-builder`, which builds it. Not published on the site. Versions are the builder's.
+Changes to the site and to `qm-site-builder`, which builds it. Not published on the site. Versions are the builder's.
 
 ## 1.1.0
 
@@ -17,7 +17,7 @@ Changes to the site and to `qm-index-builder`, which builds it. Not published on
 - added `404.html`, `sitemap.xml` and a root `robots.txt`
 - the stylesheet, script, font and logo are built into the builder; `static/` only overrides them
 - builder: `--wiki`, `--changelog`, `--schemas`; a wiki link that goes nowhere stops the build
-- the builder release moves to `Gamiseus/QuarterMaster`
+- the builder is named `qm-site-builder` (was `qm-index-builder`); its release moves to `Gamiseus/QuarterMaster`
 - registered `Gamiseus/MnB-Mods`
 
 ## 1.0.0

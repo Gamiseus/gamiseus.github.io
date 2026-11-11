@@ -909,6 +909,8 @@ Call `ExampleMod.install()` from your `require` patch (`ExampleMod = require "in
 
 Always call the original. A wrapper that doesn't call it silently turns off every other mod that wrapped the same function, and the launcher flags it ([Code checks](#code-checks)).
 
+QuarterMaster wraps a few game functions itself: `updateProfile` (the save check), and for an active faction `weaponCreator`, `specClick`, `newProfile`, the weapon pool functions, the name functions and the soldier and vehicle spawners. If your mod replaces one of these, QuarterMaster puts its own part back around your version when `love.load` ends, so the save check and the faction keep working whether or not you call the original. Its part runs once per call even when your function calls the wrapper it found.
+
 ---
 
 # Part 6: Settings, keybinds and menus (`config.toml`)
@@ -1694,6 +1696,17 @@ If you have looked at a finding and it is fine, silence it in `mod.json`. Each e
 | `block_balance` | The file (`block_balance:main.lua`). |
 
 A finding is silenced when either of the two mods it names lists it. This `overrides` list in `mod.json` is unrelated to the `[[overrides]]` tables in `qm.toml`.
+
+### Checking in the running game: a diagnostic test run
+
+The code checks read the code; they don't run it. To see what really happens, open **Diagnostics** in the launcher and choose **Trace globals...**. It starts the game once with tracing on:
+
+- **Globals to watch.** While the game loads (up to the end of its first frame), every time one of these names gets a new value the game notes the file and line that set it. The result lists the changes in order, each with the mod and patch that owns the line, or "the game's own code". Two mods setting the same name is the usual cause of one mod's function disappearing.
+- **Functions whose callers to count.** After the game has loaded, each of these functions (`name`, or `Table.name`) counts the places that call it, for as long as the run lasts. The result shows each place with its number of calls, which tells you whether your hook runs once or several times per event.
+
+The fields start with the names the code checks flagged (`redefined_global`, `capture_before_define`, `double_hook` and `name_collision` findings whose name is a plain global). You can change them before starting.
+
+A diagnostic run leaves nothing out of the profile. The save is backed up first, the game loads more slowly while it is traced, and the result stays in the profile's run log. Normal launches are never traced.
 
 ## What isn't supported
 

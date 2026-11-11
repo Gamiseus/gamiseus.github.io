@@ -16,13 +16,13 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # The builder is a pinned release of qm-index-builder.exe. To update it, publish a new
+  # The builder is a pinned release of qm-site-builder.exe. To update it, publish a new
   # release, then change the tag and the SHA-256 here and in check-registration.yml in one
   # commit. See README.md, "Updating the builder".
   BUILDER_REPO: Gamiseus/QuarterMaster
-  BUILDER_TAG: qm-index-builder-v1.1.0
-  BUILDER_ASSET: qm-index-builder.exe
-  BUILDER_SHA256: d21f3c1af51d983493bd5c1dc058be495548e673e7c75fa119f91a09e1fd76f6
+  BUILDER_TAG: qm-site-builder-v1.1.0
+  BUILDER_ASSET: qm-site-builder.exe
+  BUILDER_SHA256: c4824ecbd1252260c7a577b86d09826c69bb5cf72b2210954e863ffc96756c61
 
 jobs:
   build:

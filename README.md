@@ -33,7 +33,7 @@ Nothing here is a web page. The pages are built by a workflow and deployed strai
 
 ## How it is built
 
-`.github/workflows/build.yml` runs every hour, on every push to `main`, and by hand. It runs a pinned release of `qm-index-builder` (source: `tools/qm-index-builder` in the QuarterMaster repository), which:
+`.github/workflows/build.yml` runs every hour, on every push to `main`, and by hand. It runs a pinned release of `qm-site-builder` (source: `tools/qm-site-builder` in the QuarterMaster repository), which:
 
 1. finds candidate repositories: those with the `quartermaster-mod` topic, and those in `registry/`;
 2. skips any in `registry/denylist.txt`;
@@ -68,9 +68,9 @@ Add `owner/name` to `registry/denylist.txt` with a comment saying why, and delet
 
 The pages' layout, styles and script are inside the builder, so a change to them needs a new builder.
 
-1. In the QuarterMaster workspace: `cargo build --release -p qm-index-builder`.
-2. Publish `target\release\qm-index-builder.exe` in a release of `Gamiseus/QuarterMaster` tagged like `qm-index-builder-v1.1.0`. Mark it as a pre-release, so it never becomes the repository's latest release.
-3. Get its hash: `(Get-FileHash target\release\qm-index-builder.exe -Algorithm SHA256).Hash.ToLower()`.
+1. In the QuarterMaster workspace: `cargo build --release -p qm-site-builder`.
+2. Publish `target\release\qm-site-builder.exe` in a release of `Gamiseus/QuarterMaster` tagged like `qm-site-builder-v1.1.0`. Mark it as a pre-release, so it never becomes the repository's latest release.
+3. Get its hash: `(Get-FileHash target\release\qm-site-builder.exe -Algorithm SHA256).Hash.ToLower()`.
 4. Set `BUILDER_TAG` and `BUILDER_SHA256` in `build.yml` and `check-registration.yml`, in one commit.
 
 For a quick style change without a new builder, put a changed copy of `site.css` in `static/`.
@@ -80,7 +80,7 @@ For a quick style change without a new builder, put a changed copy of `site.css`
 In the QuarterMaster workspace, with a folder of recorded fixtures instead of GitHub:
 
 ```powershell
-cargo run -p qm-index-builder -- build --fixtures <fixture folder> --registry <site>\registry --wiki ..\docs\QUARTERMASTER_MODDING_WIKI.md --changelog CHANGELOG.md --schemas schemas --out target\site-preview
+cargo run -p qm-site-builder -- build --fixtures <fixture folder> --registry <site>\registry --wiki ..\docs\QUARTERMASTER_MODDING_WIKI.md --changelog CHANGELOG.md --schemas schemas --out target\site-preview
 ```
 
 Then serve `target\site-preview` with any static file server (the search page needs one; the other pages also open from disk). Without `--fixtures` the builder reads GitHub, using `GITHUB_TOKEN` if set.
