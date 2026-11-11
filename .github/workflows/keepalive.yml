@@ -1,0 +1,32 @@
+# GitHub stops scheduled workflows after 60 days without activity in the repository. This opens
+# an issue once the last commit is more than 50 days old, so the hourly build can be kept alive
+# (any commit, or re-enabling the workflow under Actions, resets the clock).
+name: Keepalive
+
+on:
+  schedule:
+    - cron: "41 6 * * *" # daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the last activity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last=$(git log -1 --format=%ct)
+          age=$(( ( $(date +%s) - last ) / 86400 ))
+          echo "Last commit was $age days ago."
+          if [ "$age" -le 50 ]; then exit 0; fi
+          title="The hourly site build stops in $(( 60 - age )) days"
+          if gh issue list --state open --search "in:title The hourly site build stops" --json number --jq '.[0].number' | grep -q .; then
+            echo "A reminder issue is already open."; exit 0
+          fi
+          gh issue create --title "$title" --body "The last commit was $age days ago. GitHub turns off scheduled workflows after 60 days without activity. Make any commit (for example, merge a registration) or run the Build site workflow by hand, then close this issue."

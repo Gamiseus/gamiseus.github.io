@@ -1,0 +1,3 @@
+# Lists the mods published by Gamiseus/MnB-Mods. Each of its qm.toml files still needs a
+# [publish] table naming this repository.
+repository = "Gamiseus/MnB-Mods"

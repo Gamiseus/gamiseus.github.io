@@ -1,0 +1,84 @@
+# Builds the site (the mod index, the mod pages and the wiki) and deploys it to GitHub Pages.
+name: Build site
+
+on:
+  schedule:
+    - cron: "17 * * * *" # hourly, to pick up new mod releases
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  # The builder is a pinned release of qm-index-builder.exe. To update it, publish a new
+  # release, then change the tag and the SHA-256 here and in check-registration.yml in one
+  # commit. See README.md, "Updating the builder".
+  BUILDER_REPO: Gamiseus/QuarterMaster
+  BUILDER_TAG: qm-index-builder-v1.1.0
+  BUILDER_ASSET: qm-index-builder.exe
+  BUILDER_SHA256: d21f3c1af51d983493bd5c1dc058be495548e673e7c75fa119f91a09e1fd76f6
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get the builder
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download $env:BUILDER_TAG --repo $env:BUILDER_REPO --pattern $env:BUILDER_ASSET --dir builder
+          $hash = (Get-FileHash "builder/$env:BUILDER_ASSET" -Algorithm SHA256).Hash.ToLower()
+          if ($hash -ne $env:BUILDER_SHA256.ToLower()) { throw "Builder SHA-256 is $hash, expected $env:BUILDER_SHA256" }
+
+      - name: Build
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          $options = @(
+            "--registry", "registry",
+            "--wiki", "content/wiki.md",
+            "--changelog", "content/changelog.md",
+            "--schemas", "content/schemas",
+            "--out", "_site"
+          )
+          # Files in static/ replace the builder's own stylesheet, script, font or logo.
+          if (Test-Path static) { $options += "--static", "static" }
+          & "./builder/$env:BUILDER_ASSET" build @options
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: _site
+          include-hidden-files: true
+          retention-days: 1
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: _site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

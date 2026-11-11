@@ -1,0 +1,2 @@
+# Repositories that are never listed, even with the topic or a registration.
+# One owner/name per line. Add a comment saying why.
