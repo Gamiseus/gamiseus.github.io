@@ -1,1 +1,1 @@
-# gamiseus.githhub.io
+# gamiseus.github.io
