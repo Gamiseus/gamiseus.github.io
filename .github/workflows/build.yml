@@ -21,15 +21,18 @@ concurrency:
 env:
   # The builder is a pinned release of qm-site-builder.exe. To update it, publish a new
   # release, then change the tag and the SHA-256 here and in check-registration.yml in one
-  # commit. See README.md, "Updating the builder".
+  # commit.
   BUILDER_REPO: Gamiseus/QuarterMaster
-  BUILDER_TAG: qm-site-builder-v1.1.0
+  BUILDER_TAG: qm-site-builder-v1.2.0
   BUILDER_ASSET: qm-site-builder.exe
-  BUILDER_SHA256: c4824ecbd1252260c7a577b86d09826c69bb5cf72b2210954e863ffc96756c61
+  BUILDER_SHA256: bccf98715ea9faca7981424c8b232187b9723b21f274119487a4212d3c4726e8
 
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      contents: read
+      issues: write # an issue for each release the safety scan holds
     outputs:
       changed: ${{ steps.compare.outputs.changed }}
     steps:
@@ -44,6 +47,26 @@ jobs:
           $hash = (Get-FileHash "builder/$env:BUILDER_ASSET" -Algorithm SHA256).Hash.ToLower()
           if ($hash -ne $env:BUILDER_SHA256.ToLower()) { throw "Builder SHA-256 is $hash, expected $env:BUILDER_SHA256" }
 
+      # Which repository owns each mod id, and what is listed now, are kept on the site itself
+      # (api/v1/owners.json and index.json). An id stays with its repository, and a release
+      # the safety scan holds leaves the version before it listed. A 404 means the site has no
+      # such file yet. Any other failure stops the build: building without them could give an
+      # id to another repository.
+      - name: Read what the live site lists
+        shell: pwsh
+        run: |
+          $site = "https://" + ($env:GITHUB_REPOSITORY -split "/")[1]
+          New-Item -ItemType Directory -Force state | Out-Null
+          foreach ($name in "owners.json", "index.json") {
+            try {
+              Invoke-WebRequest "$site/api/v1/$name" -OutFile "state/$name" -TimeoutSec 30
+            } catch {
+              $status = [int]$_.Exception.Response.StatusCode
+              if ($status -ne 404) { throw "$site/api/v1/$name could not be read: $($_.Exception.Message)" }
+              Write-Host "$name is not on the site yet."
+            }
+          }
+
       - name: Build
         shell: pwsh
         env:
@@ -54,12 +77,50 @@ jobs:
             "--wiki", "content/wiki.md",
             "--changelog", "content/changelog.md",
             "--schemas", "content/schemas",
+            "--report", "state/report.json",
             "--out", "_site"
           )
+          if (Test-Path state/owners.json) { $options += "--owners", "state/owners.json" }
+          if (Test-Path state/index.json) { $options += "--previous-index", "state/index.json" }
           # Files in static/ replace the builder's own stylesheet, script, font or logo.
           if (Test-Path static) { $options += "--static", "static" }
           & "./builder/$env:BUILDER_ASSET" build @options
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # One issue per held release, so the owner hears about it. An issue that was closed is
+      # not opened again for the same release.
+      - name: Open an issue for each held release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $held = @((Get-Content state/report.json -Raw | ConvertFrom-Json).held)
+          if ($held.Count -eq 0) { exit 0 }
+          $repo = $env:GITHUB_REPOSITORY
+          gh label create held-mod --repo $repo --color b60205 --description "A mod release the safety scan holds" --force | Out-Null
+          $known = @(gh issue list --repo $repo --state all --label held-mod --limit 500 --json title | ConvertFrom-Json | ForEach-Object title)
+          # Names and versions come from mod authors: only plain characters go into a title.
+          function Plain($s) { $t = ("$s" -replace '[^A-Za-z0-9._/ -]', '').Trim(); $t.Substring(0, [Math]::Min(80, $t.Length)) }
+          foreach ($h in $held | Select-Object -First 10) {
+            $title = "Held: $(Plain $h.repository) $(Plain $h.id) $(Plain $h.version)"
+            if ($known -contains $title) { continue }
+            $kept = if ($h.kept_version) { "Version $(Plain $h.kept_version) stays listed." } else { "The mod is not listed." }
+            $what = if ($h.action -eq "reject") { "fails the safety scan" } else { "is held by the safety scan" }
+            $reasons = (@($h.reasons) -join "`n") -replace '```', "'''"
+            $body = @(
+              "The latest release of this mod $what. $kept",
+              "",
+              "- Repository: https://github.com/$(Plain $h.repository)",
+              "- Archive: $(Plain $h.asset), SHA-256 $(Plain $h.sha256)",
+              "- Findings: $((@($h.kinds) | ForEach-Object { Plain $_ }) -join ', ')",
+              "",
+              '```',
+              $reasons,
+              '```'
+            ) -join "`n"
+            Set-Content state/issue.md $body
+            gh issue create --repo $repo --title $title --label held-mod --assignee $env:GITHUB_REPOSITORY_OWNER --body-file state/issue.md
+          }
 
       # The site carries a hash of its own content (build-hash.txt). A scheduled build whose
       # hash matches the live site's has nothing new, and is not deployed. A push or a run by

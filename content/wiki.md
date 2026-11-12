@@ -2115,6 +2115,7 @@ When Lua code crashes, QuarterMaster works out which mod's patch wrote the line 
 Things QuarterMaster does for every modded game, which you don't need to handle yourself:
 
 - **Steam stats.** Leaderboard uploads, achievements and stats are switched off while mods are loaded. Don't try to turn them back on.
+- **Steam must be running.** The game needs Steam to start. Without it, QuarterMaster shows a message box ("Steam is not running, or this Steam account does not own the game") and closes the game when the box is dismissed. The log has a `[QM] Steam did not start` line. Before this, the game closed with no message.
 - **Save slots.** Each profile has its own save slot, so a modded game never touches a vanilla save. A slot used with mods is marked as modded for good. A slot locked as vanilla can't be launched with mods.
 - **Damaged saves.** If a save file fails to load, the game falls back to its backup, then to a fresh profile, instead of crashing.
 - **Faction saves.** A save made with a faction loads without it; see [Part 3](#part-3-faction-mods-factiontoml).
@@ -2148,7 +2149,7 @@ The part after `#` is the file name attached to your GitHub release. `"Nexus:123
 
 ## Listing a mod in the launcher's Browse tab
 
-Published mods appear on the QuarterMaster site and in the launcher's **Mods > Browse** tab, where players install them with one click and get updates automatically. The list is rebuilt every hour. A mod needs three things to be listed.
+Published mods appear on the QuarterMaster site and in the launcher's **Mods > Browse** tab, where players install them with one click and get updates automatically. The site checks for new releases every 15 minutes; GitHub sometimes delays a check, so allow up to an hour or two. A mod needs three things to be listed.
 
 ### 1. Make the repository findable
 

@@ -2,6 +2,20 @@
 
 Changes to the site and to `qm-site-builder`, which builds it. Not published on the site. Versions are the builder's.
 
+## 1.2.0
+
+- a mod id stays with the repository that listed it first (`api/v1/owners.json`); before, the first repository by name took it
+- `registry/ids.toml` assigns an id by hand
+- safety scan of every archive, on every build: program files, bytecode, obfuscation and the like are rejected; High-rated capabilities and suspicious code are held
+- a held release leaves the version before it listed; an issue is opened for each held release
+- `allow` in a registry file accepts findings for a repository
+- a registry file can list several repositories (`repositories = [...]`), one file per owner
+- registration pull requests are reviewed automatically: merged, held for the owner, or rejected with what to fix
+- limits: 10 repositories per file, 3 open registrations per author, 20 automatic merges a day
+- mod pages show what the mod can do
+- builder: `review-registration`, `scan`, `--owners`, `--previous-index`, `--report`
+- `Gamiseus/MnB-Mods` is allowed `native_ffi` (PerfKit's timer)
+
 ## 1.1.0
 
 - the modding wiki is published as `wiki/`: a page per part, a sidebar, coloured code, a one-page view

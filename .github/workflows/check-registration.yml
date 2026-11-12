@@ -1,51 +1,145 @@
-# Checks the registry files a pull request adds or changes and writes the result to the
-# check summary. Runs with a read-only token: the pull request's files are only read as data.
-name: Check registration
+# Reviews a pull request that registers mods, and acts on the verdict:
+#
+#   pass    every check passed: the pull request is merged and the site is rebuilt;
+#   hold    nothing the author can fix: it is labelled `needs-review` and the owner is asked;
+#   reject  the author must change something: it is labelled `rejected` and the check fails.
+#
+# The review itself is `qm-site-builder review-registration`.
+#
+# SAFETY. This runs on `pull_request_target`, so it has a token that can write and it runs for
+# first-time contributors without approval. That is only safe because it never runs anything
+# from the pull request: the checkout is the main branch, the pull request's one file is
+# fetched through the API and read as data, and no value from the pull request is ever pasted
+# into a script (they arrive as environment variables). Keep it that way.
+name: Registration
 
 on:
-  pull_request:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
     paths:
       - "registry/**"
 
 permissions:
-  contents: read
-  pull-requests: write
+  contents: write # merge the pull request
+  pull-requests: write # comment, label, ask for review
+  issues: write # make the labels
+  actions: write # start the site build after a merge
+
+concurrency:
+  group: registration-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 env:
   # Keep these four the same as in build.yml.
   BUILDER_REPO: Gamiseus/QuarterMaster
-  BUILDER_TAG: qm-site-builder-v1.1.0
+  BUILDER_TAG: qm-site-builder-v1.2.0
   BUILDER_ASSET: qm-site-builder.exe
-  BUILDER_SHA256: c4824ecbd1252260c7a577b86d09826c69bb5cf72b2210954e863ffc96756c61
+  BUILDER_SHA256: bccf98715ea9faca7981424c8b232187b9723b21f274119487a4212d3c4726e8
 
 jobs:
-  check:
+  review:
     runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+      AUTHOR: ${{ github.event.pull_request.user.login }}
     steps:
+      # The main branch, never the pull request's.
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       - name: Get the builder
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           gh release download $env:BUILDER_TAG --repo $env:BUILDER_REPO --pattern $env:BUILDER_ASSET --dir builder
           $hash = (Get-FileHash "builder/$env:BUILDER_ASSET" -Algorithm SHA256).Hash.ToLower()
           if ($hash -ne $env:BUILDER_SHA256.ToLower()) { throw "Builder SHA-256 is $hash, expected $env:BUILDER_SHA256" }
 
-      - name: Check
+      - name: Read the pull request
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force pr | Out-Null
+          gh api "repos/$env:GITHUB_REPOSITORY/pulls/$env:PR/files?per_page=100" | Set-Content pr/files.json
+          if ($LASTEXITCODE -ne 0) { throw "The pull request's files could not be listed." }
+
+          # The one registry file, as text. Anything else is left for the review to refuse.
+          $files = @(Get-Content pr/files.json -Raw | ConvertFrom-Json)
+          if ($files.Count -eq 1 -and $files[0].filename -cmatch '^registry/[A-Za-z0-9._-]+\.toml$' -and $files[0].status -in 'added', 'modified' -and $env:HEAD_REPO) {
+            gh api "repos/$env:HEAD_REPO/contents/$($files[0].filename)?ref=$env:HEAD_SHA" -H "Accept: application/vnd.github.raw" | Set-Content pr/registration.toml
+            if ($LASTEXITCODE -ne 0) { Remove-Item pr/registration.toml -ErrorAction SilentlyContinue }
+          }
+
+          # What the live site lists, so a mod id that belongs to another repository is noticed.
+          $site = "https://" + ($env:GITHUB_REPOSITORY -split "/")[1]
+          foreach ($name in "owners.json", "index.json") {
+            try { Invoke-WebRequest "$site/api/v1/$name" -OutFile "pr/$name" -TimeoutSec 30 } catch { Write-Host "$name could not be read: $($_.Exception.Message)" }
+          }
+
+          # For the limits: this author's open pull requests, and today's automatic merges.
+          $open = @(gh pr list --repo $env:GITHUB_REPOSITORY --author $env:AUTHOR --state open --limit 50 --json number | ConvertFrom-Json).Count
+          $today = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
+          $merged = @(gh pr list --repo $env:GITHUB_REPOSITORY --state merged --label auto-registered --search "merged:>=$today" --limit 100 --json number | ConvertFrom-Json).Count
+          "OPEN_PRS=$open" >> $env:GITHUB_ENV
+          "MERGED_TODAY=$merged" >> $env:GITHUB_ENV
+
+      - name: Review
+        id: review
         shell: pwsh
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          $files = git diff --name-only --diff-filter=AM "$env:BASE_SHA...HEAD" -- "registry/*.toml"
-          if (-not $files) { "No registry files changed." >> $env:GITHUB_STEP_SUMMARY; exit 0 }
-          $failed = $false
-          foreach ($f in $files) {
-            & "./builder/$env:BUILDER_ASSET" check-registration $f --summary $env:GITHUB_STEP_SUMMARY
-            if ($LASTEXITCODE -ne 0) { $failed = $true }
+          $options = @(
+            "--files", "pr/files.json",
+            "--registry", "registry",
+            "--author", $env:AUTHOR,
+            "--site-owner", $env:GITHUB_REPOSITORY_OWNER,
+            "--open-prs", $env:OPEN_PRS,
+            "--merged-today", $env:MERGED_TODAY,
+            "--result", "pr/result.json",
+            "--comment", "pr/comment.md"
+          )
+          if (Test-Path pr/registration.toml) { $options += "--content", "pr/registration.toml" }
+          if (Test-Path pr/owners.json) { $options += "--owners", "pr/owners.json" }
+          if (Test-Path pr/index.json) { $options += "--previous-index", "pr/index.json" }
+          & "./builder/$env:BUILDER_ASSET" review-registration @options
+          $verdict = switch ($LASTEXITCODE) { 0 { "pass" } 3 { "hold" } 1 { "reject" } default { throw "The review could not run (exit code $LASTEXITCODE)." } }
+          "verdict=$verdict" >> $env:GITHUB_OUTPUT
+          Get-Content pr/comment.md >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Act on the verdict
+        shell: pwsh
+        env:
+          VERDICT: ${{ steps.review.outputs.verdict }}
+        run: |
+          $repo = $env:GITHUB_REPOSITORY
+          gh label create auto-registered --repo $repo --color 0e8a16 --description "Registration merged by the automatic review" --force | Out-Null
+          gh label create needs-review --repo $repo --color fbca04 --description "Registration waiting for the site's owner" --force | Out-Null
+          gh label create rejected --repo $repo --color d73a4a --description "Registration the author must change" --force | Out-Null
+
+          if ($env:VERDICT -eq "hold") {
+            Add-Content pr/comment.md "`n@$env:GITHUB_REPOSITORY_OWNER, this registration needs your decision."
           }
-          if ($failed) { exit 1 }
+          # One comment, kept up to date as the pull request changes.
+          gh pr comment $env:PR --repo $repo --body-file pr/comment.md --edit-last --create-if-none
+          if ($LASTEXITCODE -ne 0) { gh pr comment $env:PR --repo $repo --body-file pr/comment.md }
+
+          switch ($env:VERDICT) {
+            "pass" {
+              gh pr edit $env:PR --repo $repo --add-label auto-registered --remove-label needs-review --remove-label rejected
+              # Only the commit that was reviewed is merged.
+              gh pr merge $env:PR --repo $repo --squash --match-head-commit $env:HEAD_SHA
+              if ($LASTEXITCODE -ne 0) { throw "The pull request passed but could not be merged." }
+              # A merge made by a workflow does not start other workflows, so the build is asked for.
+              gh workflow run build.yml --repo $repo --ref main
+            }
+            "hold" {
+              gh pr edit $env:PR --repo $repo --add-label needs-review --remove-label rejected --remove-label auto-registered
+              gh pr edit $env:PR --repo $repo --add-reviewer $env:GITHUB_REPOSITORY_OWNER
+              exit 0 # A review request to the pull request's own author fails; that is fine.
+            }
+            "reject" {
+              gh pr edit $env:PR --repo $repo --add-label rejected --remove-label needs-review --remove-label auto-registered
+              exit 1
+            }
+          }

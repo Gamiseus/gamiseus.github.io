@@ -6,7 +6,7 @@ Versions are `Major.Minor.Patch`.
 - **Minor**: large update; things behave noticeably differently.
 - **Patch**: ordinary work; fixes and small changes that keep behaviour, or corrections to the current minor or major version.
 
-## 1.2.0 (in progress, version not bumped yet)
+## 1.2.0
 
 - launcher: Assets view on the Patches tab lists sounds, images and fonts that two sources replace
 - launcher: pick the winner for a group of files or one file; stored as a fix, undo under Fixes
@@ -36,10 +36,13 @@ Versions are `Major.Minor.Patch`.
 - added feature name `sprite_sizes`
 - removed the "dimension mismatch" warning; a replacement of another shape is reported instead
 - wiki: image resolution and size, `QM.Sprites`
+- Steam not running: message box, then the game closes, instead of a silent crash
+- wiki: Steam must be running
 - tests: one integration test program per crate (`tests/suite/`), 62 test programs down to 23
 - tests: legacy app tests moved to `ui/tests/` and run by `check.ps1`
 - tests: shared helpers deduplicated; one `support::exclusive()` guard replaces four per-file environment locks
-- `.gitignore` no longer ignores `crates/qm-core/tests`
+- tests: integration, launcher and legacy app tests kept local (`.gitignore`); unit tests stay in the repository
+- tests: removed the unused patch benchmarks (and `criterion`), the legacy Python suite, and the 1024 px screenshot set
 - added `TESTING.md`
 - added `image` in `[publish]`: a picture for the mod's card in the mod list
 - editor schema for `qm.toml` knows the `[publish]` table
