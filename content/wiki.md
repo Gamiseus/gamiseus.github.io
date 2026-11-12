@@ -17,7 +17,7 @@ The guide runs from the simplest kind of mod to the hardest. Each part builds on
 | Look up a game table or function | | [Part 8](#part-8-game-reference) |
 | Test, debug, package, publish | | [Part 9](#part-9-tools), [Part 10](#part-10-testing-and-debugging), [Part 11](#part-11-packaging-and-publishing) |
 
-This wiki is kept in step with QuarterMaster: every change to the loader that affects what mods can do is written up here. The version it describes is at the top of [CHANGELOG.md](../Quartermaster/CHANGELOG.md).
+This wiki describes the newest version of QuarterMaster, the one at the top of the [changelog](../Quartermaster/CHANGELOG.md).
 
 ---
 
@@ -576,7 +576,7 @@ local n = QMFactions and QMFactions.vehicle_name("sherman") -- "Example Tank" or
 - **One faction per side.** If a profile enables two factions for the same side, the launcher's Assets view lets the player pick which one runs. Without a pick the one with the higher `load_priority` is used and the log names the one left out. A pick stays put when the load order changes. One Allied and one Axis faction together is fine.
 - **A player can give a file back.** In the Assets view a player can choose another mod's file, or the game's own, over a faction's image, sound or voice line. The faction then leaves that one alone and everything else of it still applies.
 - **Faction art survives a reload.** A faction's images and sounds are registered with the asset loader, so when the game loads the same file again later it still gets the faction's version.
-- **Saves stay loadable.** A save remembers which faction it ran with. When it is loaded without that faction, QuarterMaster puts the vanilla class unlocks back and turns weapons the game doesn't know into their base weapon (a weapon `based_on = "m3"` becomes an M3).
+- **Saves stay loadable.** A save remembers which faction it ran with. When it is loaded without that faction, QuarterMaster puts the vanilla class unlocks back and turns weapons the game doesn't know into their base weapon (a weapon `based_on = "m3"` becomes an M3). A weapon that another loaded mod adds is left alone.
 - The launcher's mod list shows a faction mod as "Replaces the Allies" or "Replaces the Germans".
 
 ## What a faction can't do
@@ -2117,7 +2117,8 @@ Things QuarterMaster does for every modded game, which you don't need to handle 
 - **Steam stats.** Leaderboard uploads, achievements and stats are switched off while mods are loaded. Don't try to turn them back on.
 - **Steam must be running.** The game needs Steam to start. Without it, QuarterMaster shows a message box ("Steam is not running, or this Steam account does not own the game") and closes the game when the box is dismissed. The log has a `[QM] Steam did not start` line. Before this, the game closed with no message.
 - **Save slots.** Each profile has its own save slot, so a modded game never touches a vanilla save. A slot used with mods is marked as modded for good. A slot locked as vanilla can't be launched with mods.
-- **Damaged saves.** If a save file fails to load, the game falls back to its backup, then to a fresh profile, instead of crashing.
+- **Damaged saves.** A save file that fails to load does not stop the game. The damaged file is kept as `<name>.damaged` and the game gets the newest copy that loads: `backUp.lua` (for `saveMNB3.lua`), then `<name>.prev`, then a fresh profile. The log says which, in lines starting `[QM] Save guard:`.
+- **Previous copies.** Before the game overwrites `saveMNB3.lua`, `saveMNB2.lua` or `saveMNBclassic.lua`, the copy on disk becomes `<name>.prev`, so one lost write costs one save point and not the save. The `.prev` files belong to the save slot and move with it.
 - **Faction saves.** A save made with a faction loads without it; see [Part 3](#part-3-faction-mods-factiontoml).
 
 What you should do: fields you add to `player` are saved with the game, so name them after your mod (`player.example_mod_kills`) and cope with them being absent in a save made before your mod was installed.
@@ -2156,13 +2157,20 @@ Published mods appear on the QuarterMaster site and in the launcher's **Mods > B
 Choose one:
 
 - **A topic.** Add the topic `quartermaster-mod` to your GitHub repository (the gear next to "About" on its page). Mods found this way are marked **Discovered**.
-- **A registration.** Open a pull request on [gamiseus.github.io](https://github.com/Gamiseus/gamiseus.github.io) that adds a file `registry/<owner>-<name>.toml` containing one line:
+- **A registration.** Open a pull request on [gamiseus.github.io](https://github.com/Gamiseus/gamiseus.github.io) that adds one file, `registry/<owner>.toml`, named after your GitHub account:
 
   ```toml
   repository = "your-name/your-repo"
   ```
 
-  A check on the pull request says whether the repository can be listed and what to fix if not. Mods listed this way are marked **Registered**.
+  The pull request is reviewed automatically (see [What the site checks](#what-the-site-checks)). When everything passes it is merged for you and the mod is listed. Mods listed this way are marked **Registered**.
+
+  With mods in several repositories, list them all in the one file, up to ten. To add a repository later, open a pull request that adds it to your file.
+
+  ```toml
+  repositories = ["your-name/your-repo", "your-name/another-repo"]
+  contact = "optional: how to reach you"
+  ```
 
 ### 2. Add a `[publish]` table
 
@@ -2203,6 +2211,42 @@ Create a GitHub release and attach the mod archive: a `.zip` holding the mod fol
 
 Only the **latest** release is listed. The index checks that the archive holds a `mod.json` with the same id as the folder that published it, and records the archive's SHA-256. The launcher refuses a download whose hash doesn't match, so never replace a release's files after publishing. Make a new release instead.
 
+### What the site checks
+
+Every release of every listed mod is checked, whether the mod was registered or found by its topic. A registration pull request gets the same checks, and a comment that says which it failed.
+
+**The pull request.** It changes exactly one file, `registry/<owner>.toml` (or `registry/<owner>-<name>.toml`), which lists only repositories of that owner. It may add the file or add repositories to it. The repositories must be public, not archived, and not registered already.
+
+**The mod's id.** An id belongs to the first repository that lists it and stays there, so nobody else can publish a mod under your id. Choose an id nobody uses.
+
+**The archive.** It is read, never run. These are refused, and the pull request says where each was found:
+
+| Refused | Why |
+|---|---|
+| Program files and native libraries (`.exe`, `.dll`, `.so` and the like, whatever they are named) | Their contents can't be checked. |
+| Compiled Lua | It can't be read. Ship the source. |
+| Paths that leave the mod's folder, links, zip bombs | Nothing honest needs them. |
+| Code that is downloaded and then run | |
+| Code hidden by encoding it: long lists of character codes, escaped text, decoded text passed to `loadstring` | |
+| Windows command-line tools, and places where passwords, keys or browser data are kept | |
+
+These are held for the site's owner, who decides whether the mod may be listed with them:
+
+| Held | |
+|---|---|
+| Running programs, native code | The two capabilities QuarterMaster rates High ([the security scan](#the-security-scan)). Say in the pull request what the mod uses them for. |
+| System functions reached indirectly (`getfenv`, `os[...]`, `debug.sethook`) | The capability scan can't follow them. |
+| Reading where the user's files are (`os.getenv("APPDATA")` and the like) | |
+| Network use and run-time code loading in the same file | Code could arrive over the network. |
+| Packed code (a line over 4,000 characters, long encoded blocks), scripts the game doesn't use (`.bat`, `.py`), archives inside the archive | |
+| A pull request from an account under a week old, or from someone other than the repositories' owner | A public member of the owning organization counts as the owner. |
+
+Network access, raw file access and run-time code loading on their own are not held. They are shown on the mod's page under "Can do".
+
+**Later releases.** A release that is refused or held is not listed. The version listed before it stays until the new one is cleared, and its page says a newer release is being checked.
+
+`qm lint` shows the capability findings before you publish.
+
 ### Several mods in one repository
 
 Give each mod its own folder with a `mod.json` and a `qm.toml` containing `[publish]`. They can share one archive (a `.qmpack`, or a `.zip` with each mod in its own folder) or have one file each, chosen with `asset`.
@@ -2213,7 +2257,7 @@ Each listed mod gets a card in the site's mod list and a page showing its pictur
 
 ### Removal
 
-A mod that breaks the rules or harms players is removed by adding its repository to the site's denylist. Copies already installed stay on players' machines.
+A mod that breaks the rules or harms players is removed by adding its repository to the site's denylist. To take your own mod off the list, remove its `[publish]` table or the topic; for a registered repository, open a pull request that removes it from your file. Copies already installed stay on players' machines.
 
 ---
 

@@ -63,7 +63,7 @@
       "type": "string"
     },
     "overrides": {
-      "description": "Launcher check findings the author checked and silences, as '<check>:<name>' or '<check>:*', e.g. 'redefined_global:loadModSettings'. Not the qm.toml overrides. See docs/QUARTERMASTER_MODDING_WIKI.md (Part 7).",
+      "description": "Launcher check findings the author checked and silences, as '<check>:<name>' or '<check>:*', e.g. 'redefined_global:loadModSettings'. Not the qm.toml overrides. See the modding wiki, Part 7: https://gamiseus.github.io/wiki/",
       "items": {
         "type": "string"
       },
@@ -125,7 +125,7 @@
       "type": "object"
     },
     "save_content": {
-      "description": "What this mod adds that a save can hold, so the save still loads when the mod is off. See docs/QUARTERMASTER_MODDING_WIKI.md (Part 1, Saves and your mod).",
+      "description": "What this mod adds that a save can hold, so the save still loads when the mod is off. See the modding wiki, Part 1, Saves and your mod: https://gamiseus.github.io/wiki/",
       "properties": {
         "weapons": {
           "additionalProperties": {

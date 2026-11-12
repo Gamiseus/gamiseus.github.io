@@ -151,7 +151,7 @@
       "type": "object"
     },
     "rung": {
-      "description": "A place on another patch's code (within) or in the whole file. See docs/QUARTERMASTER_MODDING_WIKI.md (Part 7).",
+      "description": "A place on another patch's code (within) or in the whole file. See the modding wiki, Part 7: https://gamiseus.github.io/wiki/",
       "properties": {
         "b_fp": {
           "description": "The other patch's content when the rung was made.",
@@ -575,7 +575,7 @@
       "type": "array"
     },
     "publish": {
-      "description": "Lists the mod on the QuarterMaster site and in the launcher's Browse tab. The game ignores this table. See docs/QUARTERMASTER_MODDING_WIKI.md (Part 11).",
+      "description": "Lists the mod on the QuarterMaster site and in the launcher's Browse tab. The game ignores this table. See the modding wiki, Part 11: https://gamiseus.github.io/wiki/",
       "properties": {
         "asset": {
           "description": "The release file to install, a .zip or .qmpack. Without it, the first one in the release.",
@@ -632,7 +632,7 @@
         },
         "type": "object"
       },
-      "description": "The size an image is shown at, by the name of its global (e.g. top_m1), whatever the file's resolution. A replaced image takes the original's size without a rule. See docs/QUARTERMASTER_MODDING_WIKI.md (Part 2).",
+      "description": "The size an image is shown at, by the name of its global (e.g. top_m1), whatever the file's resolution. A replaced image takes the original's size without a rule. See the modding wiki, Part 2: https://gamiseus.github.io/wiki/",
       "type": "object"
     },
     "vars": {

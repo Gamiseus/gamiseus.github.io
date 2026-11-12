@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://quartermaster.local/schemas/faction-1.json",
   "title": "QuarterMaster faction.toml (schema 1)",
-  "description": "A faction mod: an army that takes over the Allied or German side. Guide: docs/QUARTERMASTER_MODDING_WIKI.md (Part 3).",
+  "description": "A faction mod: an army that takes over the Allied or German side. Guide: the modding wiki, Part 3: https://gamiseus.github.io/wiki/faction-mods/",
   "type": "object",
   "required": ["schema", "id", "name", "replaces"],
   "additionalProperties": false,
