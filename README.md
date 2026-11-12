@@ -14,7 +14,7 @@ Nothing here is a web page. The pages are built by a workflow and deployed strai
 | `content/changelog.md` | QuarterMaster's changelog. A copy of `Quartermaster/CHANGELOG.md`. |
 | `content/schemas/` | The editor schemas. Copies of `Quartermaster/schemas/`. |
 | `static/` | Optional. A file here replaces the builder's own file of the same name (`site.css`, `site.js`, `logo.png`, `stencil.woff2`). |
-| `.github/workflows/` | The build, the registration check, and a reminder that keeps the hourly build alive. |
+| `.github/workflows/` | The build, the registration check, and a reminder that keeps the scheduled build alive. |
 | `CHANGELOG.md` | Changes to the site itself. Not published. |
 
 ## What the site holds
@@ -33,7 +33,7 @@ Nothing here is a web page. The pages are built by a workflow and deployed strai
 
 ## How it is built
 
-`.github/workflows/build.yml` runs every hour, on every push to `main`, and by hand. It runs a pinned release of `qm-site-builder` (source: `tools/qm-site-builder` in the QuarterMaster repository), which:
+`.github/workflows/build.yml` runs on a schedule, on every push to `main`, and by hand. The schedule asks for a build every 15 minutes, because GitHub runs scheduled workflows late and drops many of them. A scheduled build that finds nothing new is not deployed: the site carries a hash of its own content (`build-hash.txt`, made by `.github/site-hash.ps1`), and a build with the same hash stops there. It runs a pinned release of `qm-site-builder` (source: `tools/qm-site-builder` in the QuarterMaster repository), which:
 
 1. finds candidate repositories: those with the `quartermaster-mod` topic, and those in `registry/`;
 2. skips any in `registry/denylist.txt`;

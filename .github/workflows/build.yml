@@ -3,7 +3,10 @@ name: Build site
 
 on:
   schedule:
-    - cron: "17 * * * *" # hourly, to pick up new mod releases
+    # Every 15 minutes, to pick up new mod releases. GitHub runs schedules late and drops many
+    # of them, so asking often is what gets a build through about once an hour. A scheduled
+    # build that finds nothing new stops before deploying.
+    - cron: "7,22,37,52 * * * *"
   push:
     branches: [main]
   workflow_dispatch:
@@ -27,8 +30,10 @@ env:
 jobs:
   build:
     runs-on: windows-latest
+    outputs:
+      changed: ${{ steps.compare.outputs.changed }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Get the builder
         shell: pwsh
@@ -56,7 +61,30 @@ jobs:
           & "./builder/$env:BUILDER_ASSET" build @options
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - uses: actions/upload-artifact@v4
+      # The site carries a hash of its own content (build-hash.txt). A scheduled build whose
+      # hash matches the live site's has nothing new, and is not deployed. A push or a run by
+      # hand always deploys.
+      - name: Compare with the live site
+        id: compare
+        shell: pwsh
+        run: |
+          $hash = & ./.github/site-hash.ps1 -Site _site
+          Set-Content -Path _site/build-hash.txt -Value $hash -NoNewline -Encoding ascii
+          $changed = $true
+          if ($env:GITHUB_EVENT_NAME -eq "schedule") {
+            $live = "https://" + ($env:GITHUB_REPOSITORY -split "/")[1] + "/build-hash.txt"
+            try {
+              $current = [Text.Encoding]::ASCII.GetString((Invoke-WebRequest $live -TimeoutSec 30).RawContentStream.ToArray()).Trim()
+              if ($current -eq $hash) { $changed = $false }
+            } catch {
+              Write-Host "The live site's hash could not be read ($($_.Exception.Message)); deploying."
+            }
+          }
+          Write-Host "This build: $hash. Deploy: $changed."
+          "changed=$($changed.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v7
+        if: steps.compare.outputs.changed == 'true'
         with:
           name: site
           path: _site
@@ -65,6 +93,7 @@ jobs:
 
   deploy:
     needs: build
+    if: needs.build.outputs.changed == 'true'
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -73,12 +102,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: site
           path: _site
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5

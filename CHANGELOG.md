@@ -19,6 +19,9 @@ Changes to the site and to `qm-site-builder`, which builds it. Not published on 
 - builder: `--wiki`, `--changelog`, `--schemas`; a wiki link that goes nowhere stops the build
 - the builder is named `qm-site-builder` (was `qm-index-builder`); its release moves to `Gamiseus/QuarterMaster`
 - registered `Gamiseus/MnB-Mods`
+- the build is scheduled every 15 minutes instead of hourly: GitHub ran the hourly one about once in twelve hours
+- a scheduled build that changes nothing is not deployed (`build-hash.txt`, `.github/site-hash.ps1`)
+- workflows use the current GitHub actions (Node 24)
 
 ## 1.0.0
 
