@@ -1,1 +1,3 @@
 repository = "HappiCroco/mnb-coop"
+# coop requires native code
+allow = ["native_ffi"]
