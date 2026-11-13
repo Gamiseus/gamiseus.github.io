@@ -55,7 +55,8 @@ ExampleMod/
 Other layouts QuarterMaster accepts:
 
 - **A version folder.** `ExampleMod/1.0.0/mod.json` and so on. When the top folder has no mod files, the newest version folder is used. The launcher's library stores mods this way.
-- **A zip.** `ExampleMod.zip` in the Mods folder works like the folder. The launcher unpacks zips on import, so this matters only for zips placed by hand.
+- **A zip.** `ExampleMod.zip` in the Mods folder works like the folder. The mod's files can sit inside one folder (`ExampleMod/mod.json`, what `qm pack` builds) or loose at the top of the zip. The launcher unpacks zips on import, so this matters only for zips placed by hand.
+- **One copy per mod id.** When two folders or zips in the Mods folder have the same mod id, only one loads: a folder before a zip, otherwise the first by name. The other is skipped with a warning (shown by `qm validate`) instead of applying every patch a second time.
 - **Several patch files.** Besides `qm.toml`, every `.toml` file under a `qm/` subfolder of the mod is loaded as a patch file, in file-name order. Use this to split a large mod.
 - `quartermaster.toml` is accepted as another name for `qm.toml`.
 
@@ -402,7 +403,7 @@ pools = ["smg", "grunt"]           # and joins these random pools
 | `name` | The weapon's name. |
 | `description` | The squad screen text. With only a `name`, the name is used. |
 | `top_sprite`, `side_sprite` | The weapon seen from above (in a soldier's hands) and from the side (in menus). |
-| `mag_sprite` | The magazine image: a game sprite name or an image file. |
+| `mag_sprite` | The magazine a soldier drops on reload. Three forms: one of the game's magazines (`genericMag`, `m3Mag`, `g43Mag`, `mg15Mag`, `ammoBox`, `ammoPan`, `barMag`, `brenMag`, `tommyMag`, `m1CarbineMag`, `mp40Mag`, `stgMag`, `ppshMag`), an image file (`"weapons/example_mag.png"`), or a name from your `[sprites]` table, which lets several weapons share one image. |
 | `sound` | The firing sound. Three forms, below. |
 | `stats` | Any of the stats listed below. Ones you leave out keep the base weapon's value. |
 | `loot_side` | `"allied"` or `"axis"`: a new weapon also drops as that side's loot. |
@@ -1942,7 +1943,7 @@ Inside the game, `require "qm"` (or `require "quartermaster"`) returns a table o
 
 ```lua
 local qm = require "qm"
-print(qm.name, qm.version)       -- "QuarterMaster", "1.1.0"
+print(qm.name, qm.version)       -- "QuarterMaster", "1.8.1"
 print(qm.mod_dir)                -- the Mods folder
 ```
 
@@ -2130,7 +2131,7 @@ qm lint ExampleMod
 qm pack ExampleMod --out dist
 ```
 
-`qm pack` writes `ExampleMod.zip` and prints its entry for a release index, including the SHA-256 checksum. Players install the zip from the launcher; it can also be dropped into the Mods folder as is.
+`qm pack` writes `ExampleMod.zip` and prints its entry for a release index, including the SHA-256 checksum. The zip holds one folder named after the mod (`ExampleMod/mod.json`, `ExampleMod/qm.toml` and so on), so unpacking it into the Mods folder gives `Mods/ExampleMod/`. Players install the zip from the launcher; it can also be dropped into the Mods folder as is. Don't leave it next to the `ExampleMod` folder it was packed from: only one of the two loads (see [The files in a mod](#the-files-in-a-mod)).
 
 Before you pack:
 

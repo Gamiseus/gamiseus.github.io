@@ -2,17 +2,25 @@
 
 Versions are `Major.Minor.Patch`.
 
-## 1.2.1
+## 1.8.1
 
 - security scan: `os.rename` is found
 - security scan: a module asked for with `pcall(require, "ffi")` is found
 - launcher: a mod index entry from another repository than the installed mod's own is not offered as its update
+- `qm pack`: the zip holds one folder named after the mod (`ExampleMod.zip` has `ExampleMod/mod.json`), so unpacking it into the Mods folder gives `Mods/ExampleMod/`
+- `qm validate` lists the warnings from reading the mods
+- factions: a weapon's `mag_sprite` can be any image, or a name from `[sprites]` shared by several weapons
+- `qm faction check` warns about a `mag_sprite` name that is neither one of the game's magazines nor in `[sprites]`
+- fixed: a faction weapon whose `mag_sprite` is not one of the game's own magazines no longer crashes the game on its first reload
+- fixed: a mod folder and a `.zip` (or a second folder) with the same mod id no longer both load and apply every patch twice; the folder loads, and the other copy is skipped with a warning
 - fixed: a save that used a faction no longer has the weapons of a loaded weapon mod turned into K98s when it loads
 - fixed: a mod with only a `faction.toml` is found in a zip or folder; it needed "Import as unmanaged" before
 - fixed: QuarterMaster's own new-profile settings patch no longer reports a count warning on every launch
 - fixed: the game's log no longer warns about the `[publish]` table of a `qm.toml`
+- fixed: the launcher builds from a fresh clone; its build script needed the local test folder
+- fixed: a Windows checkout keeps Lua and Rust sources LF (`.gitattributes`), so the start-up Lua QuarterMaster embeds no longer changes with `core.autocrlf`
 
-## 1.2.0
+## 1.8.0
 
 - launcher: Assets view on the Patches tab lists sounds, images and fonts that two sources replace
 - launcher: pick the winner for a group of files or one file; stored as a fix, undo under Fixes
@@ -46,7 +54,7 @@ Versions are `Major.Minor.Patch`.
 - added `image` in `[publish]`: a picture for the mod's card in the mod list
 - editor schema for `qm.toml` knows the `[publish]` table
 
-## 1.1.0
+## 1.7.0
 
 - added debug mode (`-debug`, `QM_DEBUG=1`, launcher switch)
 - console window only in debug mode
@@ -60,6 +68,6 @@ Versions are `Major.Minor.Patch`.
 - fixed `on_click` ignored on `config.toml` button options
 - removed `disable_console` launch setting (use `--disable-console`)
 
-## 1.0.0
+## 1.6.0
 
 - baseline: patch engine, launcher, asset autoloader, menus, keybinds, faction mods, anchors, compatibility patches
