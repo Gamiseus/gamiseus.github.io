@@ -32,9 +32,9 @@ concurrency:
 env:
   # Keep these four the same as in build.yml.
   BUILDER_REPO: Gamiseus/QuarterMaster
-  BUILDER_TAG: qm-site-builder-v1.2.0
+  BUILDER_TAG: qm-site-builder-v1.2.1
   BUILDER_ASSET: qm-site-builder.exe
-  BUILDER_SHA256: bccf98715ea9faca7981424c8b232187b9723b21f274119487a4212d3c4726e8
+  BUILDER_SHA256: b48ba00d6979b9342985100b2c32c973fb2ec0df71cb5521f29787398e573034
 
 jobs:
   review:

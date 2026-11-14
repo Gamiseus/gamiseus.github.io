@@ -27,7 +27,7 @@ This wiki describes the newest version of QuarterMaster, the one at the top of t
 
 QuarterMaster never changes the game's files on disk. A small library (`winmm.dll`) sits next to `mnb.exe` and loads with the game. Each time the game loads one of its own Lua files, QuarterMaster edits the text in memory first, using the patches from every enabled mod. Remove the mods and the game is vanilla again.
 
-The launcher keeps your mods in a library and builds a `Mods` folder for the active profile. The game reads that folder. While you develop, you can also point the launcher at a workspace folder of mods (see [Part 10](#part-10-testing-and-debugging)).
+The launcher keeps your mods in a library and builds a `Mods` folder for the active profile. The game reads that folder. While you develop, you can also point the launcher at a workspace folder of mods and switch it to run that folder's mods as they are (see [Part 10](#part-10-testing-and-debugging)).
 
 ## The files in a mod
 
@@ -835,7 +835,7 @@ match_indent = true
 
 | Key | Meaning |
 |---|---|
-| `source` | Your file, relative to the mod folder. |
+| `source` | Your file, relative to the mod folder. It must be inside the mod folder: a path with `..` or an absolute path fails the mod. |
 | `name` | The name to `require`. Any name works; the game's own files are named `includes/<file>`. |
 | `before` | The game file the module must be ready before. Use `"main.lua"`. |
 | `load_now` | `true` runs the module immediately, just before the `before` file loads, instead of waiting for a `require`. |
@@ -882,7 +882,7 @@ sources = ["extra_functions.lua"]
 | Key | Meaning |
 |---|---|
 | `position` | `"append"` (end of file) or `"prepend"` (start). |
-| `sources` | A list of your files to copy in, in order. |
+| `sources` | A list of your files to copy in, in order. Each must be inside the mod folder. |
 | `payload` | Text to copy in, instead of or as well as `sources`. |
 
 Copied code becomes part of the game file, so pattern and regex patches on that file can match it. Appended code can't follow a top-level `return` at the end of the file.
@@ -1579,6 +1579,35 @@ keep = "other_mod:armor_change"
 
 `ordinal` counts the patch's edits from 0 (kept lines don't count), `vanilla` is that edit's pattern lines, trimmed, and `fp` is the patch's content. `keep` names the patch whose change stays; its mod must be in `requires` too. If the patch changed or the edit is gone, nothing is skipped and the entry is reported. Like fingerprints, these are meant to be written by the launcher.
 
+### Choosing whose file loads
+
+When two mods you require replace the same sound, image or font, the one loaded last wins. An `[[asset_choices]]` entry names the winner for one file:
+
+```toml
+[[asset_choices]]
+key = "sounds/garand1"
+group = "sounds/garand#"
+winner = "example_mod"
+
+[asset_choices.leaves_out]
+other_mod = ["assets/sounds/garand1.wav"]
+```
+
+| Key | Meaning |
+|---|---|
+| `key` | The file, as the launcher's Assets view names it: its folder and name in lowercase, without the extension. |
+| `group` | The group the file is listed under in the Assets view: its numbered set (`sounds/garand#`) or its folder. Optional. |
+| `winner` | A mod id, `faction:<faction id>`, or `vanilla` for the game's own file. |
+| `leaves_out` | For each other source, what it does not load: a mod's `assets/...` files, or for `faction:<faction id>` the game names the faction leaves alone. |
+
+- The winner's mod and every mod under `leaves_out` must be in this mod's `requires`. A faction counts as the mod that has it.
+- Nothing happens while the winner's mod is off.
+- A player's own choice for the file, or for its group, in the Assets view wins over the entry.
+- When two compatibility patches name the same file, the later one in load order wins.
+- The Assets view shows the file as chosen by your mod.
+
+Each entry gets a status like an override's (below). The launcher writes these entries for you: see [Making one from fixes in the launcher](#making-one-from-fixes-in-the-launcher).
+
 ### Who wins
 
 1. The player's own fixes in the profile.
@@ -1604,12 +1633,13 @@ Every entry gets a status, written to the game log, to `patch-report.json` and s
 
 ### Making one from fixes in the launcher
 
-This is the easy way, and the only practical way to get fingerprints and site hashes. Fix the conflict in the launcher first: turn a patch off, order two patches, move a patch next to another mod's code, run an `at` patch as separate edits, keep one of two changes to a line, or order two blocks at a shared line. Then, in **Mods > Patches > Fixes**, choose **Save as compatibility patch...** on the fix.
+This is the easy way, and the only practical way to get fingerprints and site hashes. Fix the conflict in the launcher first: turn a patch off, order two patches, move a patch next to another mod's code, run an `at` patch as separate edits, keep one of two changes to a line, order two blocks at a shared line, or pick whose files load in the Assets view. Then, in **Mods > Patches > Fixes**, choose **Save as compatibility patch...** on the fix.
 
 - The mod's id is `compat_<mod>_<mod>`; you choose the name.
 - `requires` and `load_after` list every mod the fixes touch, at the version you have or newer.
 - `qm_features` lists exactly the features its `qm.toml` uses.
 - Each fix becomes one `[[overrides]]` entry with its fingerprint, and a `README.txt` says what it does in plain words.
+- A choice from the Assets view becomes one `[[asset_choices]]` entry for each file it decides. A choice that leaves no file out has nothing to save.
 - Before saving, the launcher runs the profile with the new mod in place of the fixes and compares every file. It saves only when the game code comes out the same.
 - Saving installs the mod, turns it on in the profile and removes the fixes it replaces. **Undo** reverses all of that.
 
@@ -1629,16 +1659,16 @@ A player can also replace one of your patches with an adjusted copy: the launche
 
 ## Feature gates: `min_qm` and `qm_features`
 
-If your mod uses newer QuarterMaster features, say so in `mod.json`. A QuarterMaster that lacks them skips the mod, and every mod that requires it, and tells the player why ("needs QuarterMaster 1.2.0 or newer (this is 1.0.0)") instead of loading it half-working.
+If your mod uses newer QuarterMaster features, say so in `mod.json`. A QuarterMaster that lacks them skips the mod, and every mod that requires it, and tells the player why ("needs QuarterMaster 1.8.0 or newer (this is 1.7.0)") instead of loading it half-working.
 
 ```json
 {
-  "min_qm": "1.2.0",
+  "min_qm": "1.8.0",
   "qm_features": ["anchors", "apply_as"]
 }
 ```
 
-`min_qm` is a version (`"1.2.0"` means that version or newer) or a range (`">=1.2 <2"`). A value that is not a version also skips the mod. `qm_features` lists features by name:
+`min_qm` is a version (`"1.8.0"` means that version or newer) or a range (`">=1.8 <2"`). A value that is not a version also skips the mod. `qm_features` lists features by name:
 
 | Feature name | List it when you use |
 |---|---|
@@ -1652,6 +1682,7 @@ If your mod uses newer QuarterMaster features, say so in `mod.json`. A QuarterMa
 | `run_as` | Adjusted copies that run as their base mod (written by the launcher) |
 | `min_qm` | The `min_qm` key itself |
 | `sprite_sizes` | `[sprites]` rules, or images that rely on being shown at the original's size |
+| `asset_choices` | `[[asset_choices]]` entries |
 
 List the features the mod uses, and only those. The gates cover a whole mod; there is no way to gate a single patch or override entry. Patch-level `requires` has no feature name; if your mod depends on it being checked, set `min_qm`.
 
@@ -1943,7 +1974,7 @@ Inside the game, `require "qm"` (or `require "quartermaster"`) returns a table o
 
 ```lua
 local qm = require "qm"
-print(qm.name, qm.version)       -- "QuarterMaster", "1.8.1"
+print(qm.name, qm.version)       -- "QuarterMaster", "1.8.2"
 print(qm.mod_dir)                -- the Mods folder
 ```
 
@@ -1984,13 +2015,31 @@ What the launcher shows for a mod, on its page:
 
 | Tab | Shows |
 |---|---|
-| Overview | The description, authors, links, README, and for an asset mod the files it replaces. |
+| Overview | The description, authors, links, README, and the asset files the mod ships. Click a file's name to view it. |
 | Options | The mod's `config.toml` options, editable outside the game. |
 | Patches | Every patch and whether it applied, conflicts with other mods, and the fixes for them. |
 | Load Order | Where the mod sits and what it depends on. |
 | Security | What the code scan found (below). |
 
+The Overview tab also sets the mod's colour in the patch views. A mod has the same colour in every file; the launcher picks one until you do.
+
+When a mod has more than one version installed, its version in the mod list is a picker: each profile chooses which version it uses, and the newest is used until you pick another.
+
 The Diagnostics screen has the crash list, the live log, and a health report.
+
+On the Patches tab:
+
+- A file's changes scroll sideways for long lines, or wrap them with **Wrap**.
+- **Assets** lists every sound, image and font a mod or faction replaces. **View** on a file shows the game's version and each mod's side by side: images are shown, sounds can be played, text is shown as text.
+- Conflicts that belong to no line (a module that replaces a whole game file, two mods setting one `[vars]` name) are listed in the notes above the files. Each has **View** for the game's file it names and **Dismiss**. A dismissed conflict stays listed under "Dismissed" for that profile and stops counting; **Show again** brings it back. Errors can't be dismissed.
+
+### Game window settings
+
+**Settings > Game window** sets the game's window size, fullscreen and its type, borderless, resizable, VSync and monitor without a mod of your own. Every value starts on "Game default". The launcher writes your values into a small mod of its own, **Game window settings** (id `qm_game_window`), and turns it on in the active profile; it appends to `conf.lua`, runs the game's own `love.conf` first and then sets your values, so it shows on the Patches tab like any other patch. Because its values are set after the game's `love.conf` has run, they also apply over a mod that edits the same line inside it. Turn it on in other profiles from the mod list. Don't use `qm_game_window` as the id of your own mod.
+
+### Copies of old Mods folders
+
+If the game folder holds a real `Mods` folder that the launcher did not make, the launcher copies it into its `backups` folder before it puts its own `Mods` in place. **Settings > Copies of old Mods folders** lists those copies with their size and what they hold, and deletes the ones you no longer need.
 
 Two switches under **Settings > Launch** matter to mod authors. Both apply to every profile:
 
@@ -2001,7 +2050,7 @@ Two switches under **Settings > Launch** matter to mod authors. Both apply to ev
 
 ## The security scan
 
-QuarterMaster reads every mod's Lua and lists what it is able to do, so players can decide what to trust. Nothing is blocked. A mod that does none of these is reported as plain sandboxed Lua.
+QuarterMaster reads every mod's Lua and lists what it is able to do, so players can decide what to trust. It reads the `.lua` and `.toml` files, and any other file a patch names as a `source`. Nothing is blocked. A mod that does none of these is reported as plain sandboxed Lua.
 
 | Capability | Found by | Rated |
 |---|---|---|
@@ -2019,12 +2068,25 @@ Use `love.filesystem` for files where you can: it is confined to the game's save
 
 ## A working loop
 
-1. Keep your mods in one workspace folder and point the launcher at it (Settings), or run `qm sync-workspace <folder>`.
+1. Keep your mods in one workspace folder, one subfolder per mod, and point the launcher at it (**Settings > Paths**). A folder that does not exist yet is made. Then pick how the launcher uses it (below).
 2. Run `qm lint <mod>` after each change. It catches a pattern that no longer matches without starting the game.
 3. Launch from the launcher or with `qm launch`.
 4. Read the log, or turn on [debug mode](#debug-mode) to watch it in a console window as the game runs.
 
 `qm watch` automates steps 2 and 3.
+
+### Library or Workspace
+
+Once a workspace folder is set, a **Library | Workspace** switch appears beside the profile picker. It chooses which set of mods the launcher shows and the game runs. Switching restarts the launcher.
+
+| Side | Mods | Profiles |
+|---|---|---|
+| Library | The mods you installed. **Sync now** in Settings copies the workspace folder's mods into the library; the launcher also does that once for an empty library. Mods you uninstall stay uninstalled until you sync. | Your normal profiles. |
+| Workspace | Only the workspace folder's mods, run from the folders themselves, so an edit is in the next launch with no copy step. **Sync now** reads the folder again after you add or remove a mod folder. | Its own profiles, kept apart from the library's. |
+
+On the Workspace side a mod is removed by deleting its folder, not from the launcher, and the workspace folder can't be changed or cleared until you switch back to Library. Save slots are shared by both sides.
+
+A subfolder whose name starts with `_` or `.` is never read as a mod. **Write the game's files here** (Settings > Paths) fills `_game_dump` in the workspace folder with every file in the game's archive (code, images, sounds, fonts), to read while you work. `qm sync-workspace <folder>` copies a folder's mods into the library from the command line.
 
 ## Debug mode
 
@@ -2100,6 +2162,7 @@ All under the game's `Mods/qm/` folder:
 | A setting is always on | Testing `modSettings.x` or `player.option_x` for truth. | Compare with `== 1`, or use `QM.settings`. |
 | A keybind does nothing | `on_trigger` names something that isn't reachable from the global table. | Make the module global, and check the spelling. |
 | The mod doesn't load at all | A missing `requires`, a failed feature gate, or an unreadable `mod.json`. | The log and the launcher say which. |
+| "duplicate key `id` in table `patches.pattern`" and the mod is skipped | One patch has the same key twice. It is not two patches sharing an id: the `[[patches]]` and `[patches.<type>]` lines that start the next patch are usually missing, so its keys fell into the patch above. | Add the two header lines above the line the error names. |
 | A replacement image looks stretched | Its shape (width to height) differs from the original's, and it is fitted to the original's box. | Keep the original's proportions, or set its size under `[sprites]`. |
 | A new image is far too large | It has no original to take a size from, so it is shown at its pixel size. | Add a `[sprites]` rule: `scale`, `like` or `size`. |
 
@@ -2119,7 +2182,7 @@ Things QuarterMaster does for every modded game, which you don't need to handle 
 - **Steam must be running.** The game needs Steam to start. Without it, QuarterMaster shows a message box ("Steam is not running, or this Steam account does not own the game") and closes the game when the box is dismissed. The log has a `[QM] Steam did not start` line. Before this, the game closed with no message.
 - **Save slots.** Each profile has its own save slot, so a modded game never touches a vanilla save. A slot used with mods is marked as modded for good. A slot locked as vanilla can't be launched with mods.
 - **Damaged saves.** A save file that fails to load does not stop the game. The damaged file is kept as `<name>.damaged` and the game gets the newest copy that loads: `backUp.lua` (for `saveMNB3.lua`), then `<name>.prev`, then a fresh profile. The log says which, in lines starting `[QM] Save guard:`.
-- **Previous copies.** Before the game overwrites `saveMNB3.lua`, `saveMNB2.lua` or `saveMNBclassic.lua`, the copy on disk becomes `<name>.prev`, so one lost write costs one save point and not the save. The `.prev` files belong to the save slot and move with it.
+- **Previous copies.** Before the game overwrites `saveMNB3.lua`, `saveMNB2.lua` or `saveMNBclassic.lua`, the copy on disk becomes `<name>.prev`, so one lost write costs one save point and not the save. When a write never reached the disk and only the `.prev` copy is left, the game loads that copy. The `.prev` files belong to the save slot and move with it. Restoring a backup makes the slot's save files exactly the backup's, so a `.prev` copy or a save made after the backup is removed.
 - **Faction saves.** A save made with a faction loads without it; see [Part 3](#part-3-faction-mods-factiontoml).
 
 What you should do: fields you add to `player` are saved with the game, so name them after your mod (`player.example_mod_kills`) and cope with them being absent in a save made before your mod was installed.

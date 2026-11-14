@@ -2,6 +2,10 @@
 
 What changed on the QuarterMaster site.
 
+## 1.2.1
+
+- a mod whose id is not plain lowercase letters, digits, `_` or `-` is not listed
+
 ## 1.2.0
 
 - a mod id stays with the repository that listed it first, so nobody else can publish under it
