@@ -277,7 +277,7 @@ The game marks every unit `allied` or `axis` and checks that in hundreds of plac
 ## Starting one
 
 ```bash
-qm new example_army "Example Army" --template faction_mod
+qm new example_army "Example Army" --template faction
 ```
 
 This writes a `faction.toml` with every section (most commented out), a copy of the editor schema (`faction.schema.json`), and empty folders for your files. Check your work at any time:
@@ -654,7 +654,7 @@ The keys under the header are the same in both forms; nothing else about a patch
 - **You can mix them.** One file may hold patches in both forms, in any order. Use whichever reads better; there is no need to convert a file that works.
 - **Order is the order you wrote.** Patches are read top to bottom across both forms. A patch without an `id` is numbered by its place in the file, so moving patches around renumbers them: give every patch an `id` (see [Part 7](#name-your-patches-and-declare-what-you-need)).
 - **Each header starts a new patch.** `[[pattern]]` written three times is three patches. Leaving a header out puts the next patch's keys into the one before it, and the file fails with a "duplicate key" error.
-- **The short form needs QuarterMaster 1.9.1 or newer.** An older QuarterMaster does not know `[[pattern]]` and leaves those patches out with a warning. If your mod uses the short form, list `short_patches` under `qm_features` in `mod.json` (see [Feature gates](#feature-gates-min_qm-and-qm_features)); the long form works on every version. `qm lint` warns when the short form is used without it.
+- **The short form needs QuarterMaster 2.0.0 or newer.** An older QuarterMaster does not know `[[pattern]]` and leaves those patches out with a warning. If your mod uses the short form, list `short_patches` under `qm_features` in `mod.json` (see [Feature gates](#feature-gates-min_qm-and-qm_features)); the long form works on every version. `qm lint` warns when the short form is used without it.
 
 The rest of this wiki writes its examples in the long form, because it runs everywhere. Every one of them can be written in the short form by changing its first two lines into one.
 
@@ -1998,18 +1998,18 @@ Text shown in the game lives in global variables in `includes/localisation.lua`:
 
 ## The `qm` command line
 
-`qm.exe` ships with QuarterMaster. The commands a mod author uses:
+`qm.exe` comes with QuarterMaster: the installer puts it beside the launcher and can add it to PATH, and the zip has it next to `qm-launcher.exe`. It works on the same library, profiles and saves as the launcher. The commands a mod author uses:
 
 | Command | Does |
 |---|---|
-| `qm new <id> "<name>" --template <t>` | Creates a new mod folder from a template (below). |
-| `qm lint <mod_dir>` | Checks `mod.json`, runs every patch against the game's files to find patterns that don't match, checks a `faction.toml`, and reports risky code. Run this before every release. |
+| `qm new <id> "<name>" [--template <t>]` | Creates a new mod folder from a template (below). |
+| `qm lint <mod_dir>` | Checks `mod.json`, runs every patch against the game's files to find patterns that don't match, checks a `faction.toml`, warns about the short patch form used without `short_patches`, and lists what the code can do. Run this before every release. |
 | `qm validate [--mod-dir <dir>] [--json]` | Runs all enabled mods together offline and reports conflicts between them. |
-| `qm test-patches [--target <file.lua>] [--mod-dir <dir>]` | Shows the patched game file with each line marked by the patch that wrote it. |
+| `qm test-patches [--target <file.lua>] [--mod-dir <dir>]` | Lists, for each game file, the patches that ran on it in order, with their result and the lines they wrote. |
 | `qm faction check <mod_dir> [--json]` | Checks a faction and lists what it changes. |
 | `qm watch [--relaunch]` | Watches your workspace folder and re-checks mods as you save. With `--relaunch`, restarts the game. |
 | `qm pack <mod_dir> [--out <dir>]` | Builds the release `.zip` and prints its checksum entry. |
-| `qm schema [--out <dir>]` | Writes the editor schemas: `mod.schema.json`, `qm.schema.json`, `faction.schema.json`. |
+| `qm schema [--out <dir>]` | Writes the editor schemas `mod.schema.json`, `qm.schema.json` and `faction.schema.json` into `schemas` (or `--out`). |
 | `qm sync-workspace [<dir>]` | Imports every mod in a workspace folder into the launcher's library. |
 | `qm import <path>` | Imports one mod (folder or zip). |
 | `qm launch [--profile <id>] [--vanilla]` | Starts the game with a profile, or without mods. |
@@ -2019,20 +2019,20 @@ Text shown in the game lives in global variables in `includes/localisation.lua`:
 
 ### Templates
 
-`qm new` takes any of these with `--template`:
+`qm new <id> "<name>"` makes a folder named after the mod, with a `mod.json`, a `README.md` and the files of the template you pick with `--template`. Without `--template` you get `patch`.
 
 | Template | Starts you with |
 |---|---|
-| `empty` | `mod.json` and a `qm.toml` with one patch. |
-| `single_anchor_patch` | One commented pattern patch. |
-| `multi_file_engine_hook` | A module plus patches that call it from the game loop. |
-| `asset_file_injection` | A module that adds new files to the game. |
-| `faction_mod` | A commented `faction.toml` with every section, and its folders. |
-| `sprite_replacer`, `sound_replacer`, `custom_battle_music`, `custom_particle_fx` | Art and audio starters. |
-| `custom_weapon`, `custom_soldier_class`, `custom_battle_condition`, `custom_reinforcement_card`, `custom_map_structure` | Gameplay starters. |
-| `custom_hud_overlay`, `gmenu_settings` | UI starters. |
+| `empty` | `mod.json` and a `qm.toml` with no patches yet, and one commented example to switch on. |
+| `patch` | One commented pattern patch on `main.lua` ([Part 4](#part-4-changing-game-code-qmtoml)). |
+| `module` | Your own Lua file, registered, loaded with the game and called every frame ([Part 5](#part-5-adding-your-own-lua-files)). |
+| `settings` | The `module` files plus a `config.toml` with two options and a keybind, and Lua that reads them ([Part 6](#part-6-settings-keybinds-and-menus-configtoml)). |
+| `assets` | An `assets/` folder for replacement sounds, music, sprites and fonts. No code ([Part 2](#part-2-replacing-art-and-sound-assets)). |
+| `faction` | A commented `faction.toml` with every section, and its folders ([Part 3](#part-3-faction-mods-factiontoml)). |
 
-Some of the older templates were written before the built-in menu and asset loading existed and do by hand what `config.toml` and `assets/` now do for you. Prefer the approaches in this wiki where they overlap.
+Every template passes `qm lint` as it is written, so you start from a mod that loads. `--author "<name>"` fills in `authors`, and `--dir <folder>` makes the mod somewhere other than the current folder.
+
+The older template names still work and give the nearest of these: `single_anchor_patch` (`patch`), `multi_file_engine_hook` and `gameplay_patch` (`module`), `gmenu_settings` and `gmenu_config` (`settings`), `sprite_replacer`, `sound_replacer`, `custom_battle_music` and `asset_file_injection` (`assets`), `faction_mod` (`faction`). Seven gameplay templates from before the built-in menu, asset loading and factions were removed, because they hooked game functions that no longer match the game: `custom_hud_overlay`, `custom_particle_fx`, `custom_weapon`, `custom_soldier_class`, `custom_battle_condition`, `custom_reinforcement_card` and `custom_map_structure`.
 
 ## Editor schemas
 

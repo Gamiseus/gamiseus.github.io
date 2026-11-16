@@ -23,9 +23,9 @@ env:
   # release, then change the tag and the SHA-256 here and in check-registration.yml in one
   # commit.
   BUILDER_REPO: Gamiseus/QuarterMaster
-  BUILDER_TAG: qm-site-builder-v1.2.1
+  BUILDER_TAG: qm-site-builder-v1.2.2
   BUILDER_ASSET: qm-site-builder.exe
-  BUILDER_SHA256: b48ba00d6979b9342985100b2c32c973fb2ec0df71cb5521f29787398e573034
+  BUILDER_SHA256: 9243bfc7ddb2a98cc4e3ad7a709f723795966e5d17b6dcc1247bf4b0d30cce8e
 
 jobs:
   build:

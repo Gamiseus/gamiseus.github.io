@@ -2,6 +2,11 @@
 
 What changed on the QuarterMaster site.
 
+## 1.2.2
+
+- the safety check reads a mod's text files as code whatever their extension, not only `.lua` and `.toml`
+- patches written in the short form (`[[pattern]]`, `[[module]]`, ...) are read like the long form
+
 ## 1.2.1
 
 - a mod whose id is not plain lowercase letters, digits, `_` or `-` is not listed
