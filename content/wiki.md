@@ -654,7 +654,7 @@ The keys under the header are the same in both forms; nothing else about a patch
 - **You can mix them.** One file may hold patches in both forms, in any order. Use whichever reads better; there is no need to convert a file that works.
 - **Order is the order you wrote.** Patches are read top to bottom across both forms. A patch without an `id` is numbered by its place in the file, so moving patches around renumbers them: give every patch an `id` (see [Part 7](#name-your-patches-and-declare-what-you-need)).
 - **Each header starts a new patch.** `[[pattern]]` written three times is three patches. Leaving a header out puts the next patch's keys into the one before it, and the file fails with a "duplicate key" error.
-- **The short form needs QuarterMaster 1.9.1 or newer.** An older QuarterMaster does not know `[[pattern]]` and leaves those patches out with a warning. If your mod uses the short form, list `short_patches` under `qm_features` in `mod.json` (see [Feature gates](#feature-gates-min_qm-and-qm_features)); the long form works on every version.
+- **The short form needs QuarterMaster 1.9.1 or newer.** An older QuarterMaster does not know `[[pattern]]` and leaves those patches out with a warning. If your mod uses the short form, list `short_patches` under `qm_features` in `mod.json` (see [Feature gates](#feature-gates-min_qm-and-qm_features)); the long form works on every version. `qm lint` warns when the short form is used without it.
 
 The rest of this wiki writes its examples in the long form, because it runs everywhere. Every one of them can be written in the short form by changing its first two lines into one.
 
@@ -2172,7 +2172,7 @@ Two switches under **Settings > Launch** matter to mod authors. Both apply to ev
 
 ## The security scan
 
-QuarterMaster reads every mod's Lua and lists what it is able to do, so players can decide what to trust. It reads the `.lua` and `.toml` files, and any other file a patch names as a `source`. Nothing is blocked. A mod that does none of these is reported as plain sandboxed Lua.
+QuarterMaster reads every mod's Lua and lists what it is able to do, so players can decide what to trust. It reads the `.lua` and `.toml` files, any other file a patch names as a `source`, and any file of the mod that its Lua names in quotes (`dofile("extra.dat")`), whatever the extension. Images, sounds and fonts are never read as code, and a file whose name is built at run time is not seen. Nothing is blocked. A mod that does none of these is reported as plain sandboxed Lua.
 
 | Capability | Found by | Rated |
 |---|---|---|
