@@ -615,6 +615,86 @@ print("[Example Mod] loaded")
 
 Launch the game and the line appears in the log (`Mods/qm/log/latest.log`).
 
+## Two ways to write a patch
+
+Every patch has a type: `pattern`, `regex`, `copy` or `module`. There are two ways to say which one, and they mean exactly the same thing.
+
+**The long form** is the one above. `[[patches]]` starts a patch, and the next line names its type:
+
+```toml
+[[patches]]
+[patches.pattern]
+id = "example_mod:hello"
+target = "main.lua"
+pattern = 'require "includes/directives"'
+position = "after"
+payload = 'print("[Example Mod] loaded")'
+```
+
+**The short form** puts the type in the header, so a patch starts with one line instead of two:
+
+```toml
+[[pattern]]
+id = "example_mod:hello"
+target = "main.lua"
+pattern = 'require "includes/directives"'
+position = "after"
+payload = 'print("[Example Mod] loaded")'
+```
+
+| Long form | Short form |
+|---|---|
+| `[[patches]]` then `[patches.pattern]` | `[[pattern]]` |
+| `[[patches]]` then `[patches.regex]` | `[[regex]]` |
+| `[[patches]]` then `[patches.copy]` | `[[copy]]` |
+| `[[patches]]` then `[patches.module]` | `[[module]]` |
+
+The keys under the header are the same in both forms; nothing else about a patch changes. Things to know:
+
+- **You can mix them.** One file may hold patches in both forms, in any order. Use whichever reads better; there is no need to convert a file that works.
+- **Order is the order you wrote.** Patches are read top to bottom across both forms. A patch without an `id` is numbered by its place in the file, so moving patches around renumbers them: give every patch an `id` (see [Part 7](#name-your-patches-and-declare-what-you-need)).
+- **Each header starts a new patch.** `[[pattern]]` written three times is three patches. Leaving a header out puts the next patch's keys into the one before it, and the file fails with a "duplicate key" error.
+- **The short form needs QuarterMaster 1.9.1 or newer.** An older QuarterMaster does not know `[[pattern]]` and leaves those patches out with a warning. If your mod uses the short form, list `short_patches` under `qm_features` in `mod.json` (see [Feature gates](#feature-gates-min_qm-and-qm_features)); the long form works on every version.
+
+The rest of this wiki writes its examples in the long form, because it runs everywhere. Every one of them can be written in the short form by changing its first two lines into one.
+
+### Sorting patches into groups: `group`
+
+A file with many patches is easier to keep in order when they are labelled. Any patch, in either form, takes an optional `group`:
+
+```toml
+[[pattern]]
+id = "example_mod:hud_clock"
+group = "HUD"
+target = "includes/drawFiles.lua"
+pattern = "drawHud()"
+position = "after"
+payload = "ExampleMod.drawClock()"
+
+[[pattern]]
+id = "example_mod:hud_compass"
+group = "HUD"
+target = "includes/drawFiles.lua"
+pattern = "drawHud()"
+position = "after"
+payload = "ExampleMod.drawCompass()"
+
+[[regex]]
+id = "example_mod:faster_reload"
+group = "Balance"
+target = "includes/weapons.lua"
+pattern = 'reloadTime = \d+'
+position = "at"
+payload = "reloadTime = 2"
+```
+
+- `group` is a label of your choosing: `"HUD"`, `"Balance"`, `"Fixes"`. Patches with the same label belong together.
+- The launcher lists a mod's patches under their groups on the mod's **Patches** tab, in the order the groups first appear in the file. Patches without a group come last, under "Other patches". A mod that uses no groups is listed as before.
+- The game ignores `group`. It changes neither the order patches run in nor what they do; use `priority`, `before` and `after` for that. Patches of one group do not have to be next to each other in the file, though keeping them together is the point.
+- An older QuarterMaster warns about the unknown key and applies the patch as usual, so `group` alone needs no entry in `qm_features`.
+
+A comment line right above a patch's header (`# Draws the clock`) names a patch that has no `name` of its own, in both forms.
+
 ## Pattern patches
 
 A pattern patch matches whole lines of the game file.
@@ -1683,6 +1763,7 @@ If your mod uses newer QuarterMaster features, say so in `mod.json`. A QuarterMa
 | `min_qm` | The `min_qm` key itself |
 | `sprite_sizes` | `[sprites]` rules, or images that rely on being shown at the original's size |
 | `asset_choices` | `[[asset_choices]]` entries |
+| `short_patches` | Patches written in the short form: `[[pattern]]`, `[[regex]]`, `[[copy]]`, `[[module]]` |
 
 List the features the mod uses, and only those. The gates cover a whole mod; there is no way to gate a single patch or override entry. Patch-level `requires` has no feature name; if your mod depends on it being checked, set `min_qm`.
 
@@ -2015,7 +2096,7 @@ What the launcher shows for a mod, on its page:
 
 | Tab | Shows |
 |---|---|
-| Overview | The description, authors, links, README, and the asset files the mod ships. Click a file's name to view it. |
+| Overview | The description, authors, links, README, and every file the mod comes with, by folder and with sizes. Click a file's name to view it. |
 | Options | The mod's `config.toml` options, editable outside the game. |
 | Patches | Every patch and whether it applied, conflicts with other mods, and the fixes for them. |
 | Load Order | Where the mod sits and what it depends on. |
@@ -2024,6 +2105,15 @@ What the launcher shows for a mod, on its page:
 The Overview tab also sets the mod's colour in the patch views. A mod has the same colour in every file; the launcher picks one until you do.
 
 When a mod has more than one version installed, its version in the mod list is a picker: each profile chooses which version it uses, and the newest is used until you pick another.
+
+Installing a version of a mod that is already installed asks what to do with the one that is there:
+
+| Choice | What happens |
+|---|---|
+| Upgrade | The new version takes the place of the installed one, and profiles use it. A version another profile is set to use stays. |
+| Install alongside | The installed versions stay as well. Profiles stay on the version they use. |
+
+An update from the Mods screen works like Upgrade. With several versions installed, the Overview tab lists them, and each can be removed there; a profile set to a removed version goes back to the newest.
 
 The Diagnostics screen has the crash list, the live log, and a health report.
 
@@ -2040,6 +2130,38 @@ On the Patches tab:
 ### Copies of old Mods folders
 
 If the game folder holds a real `Mods` folder that the launcher did not make, the launcher copies it into its `backups` folder before it puts its own `Mods` in place. **Settings > Copies of old Mods folders** lists those copies with their size and what they hold, and deletes the ones you no longer need.
+
+### Moving from a manual install
+
+Before the launcher, QuarterMaster was installed by hand: `winmm.dll` and a `Mods` folder copied into the game folder. When the launcher finds that, it offers to import it. **Import**:
+
+- copies every mod in the `Mods` folder into the library and turns it on in the active profile. A mod that is already in the library is left as it is;
+- moves the `Mods` folder into the launcher's `backups` folder, with everything in it (**Settings > Copies of old Mods folders** does not list it; open the folder from the result);
+- deletes the old `winmm.dll` from the game folder. The launcher puts its own there each time it launches the game.
+
+A folder that looks like a mod and cannot be read is listed with the reason and left in the moved folder. **Not now** changes nothing, and the offer returns at the next start.
+
+### A mod with no version
+
+A mod states its version in `mod.json`, or in the `[manifest]` of its `qm.toml`. A mod with neither (a folder of `assets/`, or only a `faction.toml`) is installed as version `0.0.0`, and the launcher says so. Any version the author gives it later counts as newer, so the update replaces it cleanly.
+
+### Where the launcher keeps its data
+
+| How it was installed | Data folder |
+|---|---|
+| With the installer | `qm-data` in the install folder, by default `C:\Program Files\QuarterMaster\qm-data` |
+| The zip, unpacked anywhere | `qm-data` beside `qm-launcher.exe` (the zip's `portable.txt` asks for this) |
+| `qm-launcher.exe` alone, with no `portable.txt` beside it | `%APPDATA%\QuarterMaster` |
+
+The data folder holds the library, the profiles, the save slots, the backups and the settings. **Settings > Folders** opens it. A launcher that keeps its data beside itself and finds earlier data in `%APPDATA%\QuarterMaster` offers once, at its first start, to move that data over.
+
+The installer can also put `qm.exe`, the command-line tool, beside the launcher and add that folder to PATH, so `qm` works in any terminal. Uninstalling takes QuarterMaster's files out of the game folder; its checkbox decides whether `qm-data` is deleted too. A workspace mods folder is never deleted, wherever it is.
+
+The first start also asks for the game, the save folder and a workspace mods folder. The workspace is only for making mods; the suggested one is `mod-workspace` beside the launcher, and any folder you already keep your mods in can be picked instead.
+
+### Reporting a problem
+
+**Report a problem** (Diagnostics, and Settings > About) asks what the problem is about, a title and what happened, then opens a new issue on QuarterMaster's GitHub page with that text filled in. Nothing is sent by the launcher itself. With **Make a report file to attach** on, it also writes a zip to drag onto the issue: your description, the mod list and load order, the launcher's settings, the last lines of the launcher and game logs and the recent crash reports, with your Windows user name and Steam id removed. When a player reports a problem with your mod, ask for that file.
 
 Two switches under **Settings > Launch** matter to mod authors. Both apply to every profile:
 
@@ -2212,6 +2334,15 @@ Before you pack:
 
 The part after `#` is the file name attached to your GitHub release. `"Nexus:1234"` points at a Nexus Mods page id.
 
+What the launcher does with them, for players:
+
+- It checks at startup and every 6 hours while it is open (Settings > Updates turns this off; **Check now** checks at once). Listed mods are checked through the site's mod list, others through the latest release of the repository in their update key.
+- An update is offered in a note and on the Mods screen (the **Updates** filter and **Update all**). With **Install mod updates automatically** on, it is installed while the game is closed; a mod's Overview can set this for that mod alone.
+- By default the new version takes the old one's place in every profile. With **Keep the old version when a mod updates** on, both stay installed: the profile in use moves to the new version and the other profiles stay on the old one.
+- A mod in the workspace mods folder is never updated this way; it updates from its folder.
+
+QuarterMaster updates itself the same way: Settings > Updates shows the installed version and, when a newer release is out, **Update and restart**. That downloads the release, replaces the launcher and the loader together, and starts the launcher again; the loader in the game folder is replaced at the next launch. The launcher it replaced is kept beside it, and **Go back to the previous version** puts that launcher and its loader back.
+
 ## Listing a mod in the launcher's Browse tab
 
 Published mods appear on the QuarterMaster site and in the launcher's **Mods > Browse** tab, where players install them with one click and get updates automatically. The site checks for new releases every 15 minutes; GitHub sometimes delays a check, so allow up to an hour or two. A mod needs three things to be listed.
@@ -2329,9 +2460,12 @@ A mod that breaks the rules or harms players is removed by adding its repository
 
 ## Patch keys
 
+A patch starts with `[[patches]]` and `[patches.<type>]`, or with `[[<type>]]` alone ([Two ways to write a patch](#two-ways-to-write-a-patch)).
+
 | Key | Pattern | Regex | Copy | Module |
 |---|---|---|---|---|
 | `id` | yes | yes | yes | yes |
+| `group` (a label for the launcher) | yes | yes | yes | yes |
 | `name`, `description` | yes | yes | `name` | |
 | `target` | yes | yes | yes | |
 | `pattern`, `payload`, `position` | yes | yes | `payload`, `position` | |
