@@ -2,6 +2,15 @@
 
 Versions are `Major.Minor.Patch`.
 
+## 2.0.2
+
+- a mod's options can be grouped in a submenu: an option with `type = "submenu"` is one row that opens a page of the options whose `submenu` key names it. In the launcher it is a group that opens in place. Submenus can sit inside submenus
+- added feature name `config_submenus`; `qm lint` warns when a submenu is used without it
+- launcher: the Options tab hides an option while its `show_if` does not match, as the game does
+- in the game and the launcher, `show_if` with `value = true` also matches a checkbox saved as `1` (and `false` matches `0`)
+- Safe reset drops a value saved under a submenu's id, since a submenu holds none
+- fixed: the game's Mod Settings screen drew a mod's options past the 14th off the screen; they are now on pages of 14, turned with page buttons or the mouse wheel
+
 ## 2.0.1
 
 - launcher: updating QuarterMaster no longer leaves a console window open with an error in it; the update itself was already fine

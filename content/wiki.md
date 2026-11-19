@@ -998,7 +998,7 @@ QuarterMaster wraps a few game functions itself: `updateProfile` (the save check
 
 QuarterMaster builds three screens into the game's main menu and fills them from every mod's `config.toml`:
 
-- **Mod Settings**: one tab per mod with its options.
+- **Mod Settings**: one tab per mod with its options, 14 to a page. A mod with more has page buttons at the bottom, and the mouse wheel turns the pages.
 - **Keybinds**: every mod's keybinds plus the game's own controls, all rebindable.
 - **Mod Operations**: cards that open a mod's page or start a mod's game mode.
 
@@ -1038,7 +1038,7 @@ description = "How many soldiers you can field."
 |---|---|
 | `id` | The option's name in code. |
 | `label` | The text on its row. |
-| `type` | `"checkbox"` (on/off), `"cycle"` (step through a list), or `"button"` (run an action). |
+| `type` | `"checkbox"` (on/off), `"cycle"` (step through a list), `"button"` (run an action), or `"submenu"` (a row that opens a page of options, [below](#grouping-options-in-a-submenu)). |
 | `default` | The starting value. |
 | `description` | The tooltip. |
 | `options` | For `cycle`: the values, as numbers or text. |
@@ -1046,6 +1046,7 @@ description = "How many soldiers you can field."
 | `button_text` | For `button`: the text on the button. |
 | `on_click` | For `button`: the global function to call, by name ([below](#acting-when-an-option-changes)). |
 | `show_if` | Show the option only when another option has a certain value (below). |
+| `submenu` | Show the option inside a submenu: the `id` of a `"submenu"` option ([below](#grouping-options-in-a-submenu)). |
 | `aliases` | Extra names the value is also stored under (below). |
 
 The launcher's mod page has an Options tab that edits the same options outside the game.
@@ -1069,7 +1070,48 @@ default = 1
 show_if = { id = "difficulty", value = "Custom" }
 ```
 
-`show_if` names another option of the same mod. Use `value` for one value or `values = ["Hard", "Custom"]` for several.
+`show_if` names another option of the same mod. Use `value` for one value or `values = ["Hard", "Custom"]` for several. For a checkbox, `value = true` also matches a value saved as `1`, and `false` matches `0`.
+
+A hidden option keeps its value; it is only out of sight, in the game and in the launcher's Options tab alike.
+
+### Grouping options in a submenu
+
+A `"submenu"` option is one row that opens a page of its own. Give each option that belongs on that page a `submenu` key with the submenu's `id`:
+
+```toml
+[[options]]
+id = "double_xp"
+label = "Double XP"
+type = "checkbox"
+default = false
+
+[[options]]
+id = "advanced"
+label = "Advanced"
+type = "submenu"
+description = "Finer settings for experienced players."
+
+[[options]]
+id = "xp_for_medics"
+label = "Medics Earn XP"
+type = "checkbox"
+default = true
+submenu = "advanced"
+
+[[options]]
+id = "xp_cap"
+label = "XP Cap"
+type = "cycle"
+options = [100, 200, 500]
+default = 200
+submenu = "advanced"
+```
+
+- In the game, the Advanced row opens a page with Medics Earn XP and XP Cap; **Back** returns to the mod's first page. In the launcher, Advanced is a group that opens in place.
+- A submenu holds no value, so it takes no `default` and has nothing to read in Lua. The options inside it are stored and read like any other: `QM.settings.example_mod.xp_cap`.
+- A submenu can sit inside another submenu, and it can have a `show_if` of its own. Options in a submenu can use `show_if` as usual.
+- An option whose `submenu` names no `"submenu"` option of the same mod is shown on the mod's first page.
+- List `config_submenus` under `qm_features` in `mod.json` ([Feature gates](#feature-gates-min_qm-and-qm_features)). A QuarterMaster older than 2.0.2 cannot read a config with a submenu in it, and without the feature name it would load the mod with no options at all. `qm lint` warns when a submenu is used without it.
 
 ### Reading an option in Lua
 
@@ -1764,6 +1806,7 @@ If your mod uses newer QuarterMaster features, say so in `mod.json`. A QuarterMa
 | `sprite_sizes` | `[sprites]` rules, or images that rely on being shown at the original's size |
 | `asset_choices` | `[[asset_choices]]` entries |
 | `short_patches` | Patches written in the short form: `[[pattern]]`, `[[regex]]`, `[[copy]]`, `[[module]]` |
+| `config_submenus` | `type = "submenu"` options in the mod's config |
 
 List the features the mod uses, and only those. The gates cover a whole mod; there is no way to gate a single patch or override entry. Patch-level `requires` has no feature name; if your mod depends on it being checked, set `min_qm`.
 
@@ -2003,7 +2046,7 @@ Text shown in the game lives in global variables in `includes/localisation.lua`:
 | Command | Does |
 |---|---|
 | `qm new <id> "<name>" [--template <t>]` | Creates a new mod folder from a template (below). |
-| `qm lint <mod_dir>` | Checks `mod.json`, runs every patch against the game's files to find patterns that don't match, checks a `faction.toml`, warns about the short patch form used without `short_patches`, and lists what the code can do. Run this before every release. |
+| `qm lint <mod_dir>` | Checks `mod.json`, runs every patch against the game's files to find patterns that don't match, checks a `faction.toml`, warns about the short patch form used without `short_patches` and a submenu used without `config_submenus`, and lists what the code can do. Run this before every release. |
 | `qm validate [--mod-dir <dir>] [--json]` | Runs all enabled mods together offline and reports conflicts between them. |
 | `qm test-patches [--target <file.lua>] [--mod-dir <dir>]` | Lists, for each game file, the patches that ran on it in order, with their result and the lines they wrote. |
 | `qm faction check <mod_dir> [--json]` | Checks a faction and lists what it changes. |
@@ -2491,7 +2534,7 @@ A patch starts with `[[patches]]` and `[patches.<type>]`, or with `[[<type>]]` a
 | Table | Required keys | Optional keys |
 |---|---|---|
 | top level | | `name` |
-| `[[options]]` | `id`, `label` | `type`, `default`, `description`, `options`, `labels`, `button_text`, `on_click`, `show_if`, `aliases` |
+| `[[options]]` | `id`, `label` | `type`, `default`, `description`, `options`, `labels`, `button_text`, `on_click`, `show_if`, `submenu`, `aliases` |
 | `[[keybinds]]` | `id`, `name`, `default` | `category`, `tab`, `modifiers`, `secondary`, `description`, `on_trigger` |
 | `[[modes]]` | `id`, `title` | `subtitle`, `description`, `icon`, `priority`, `on_click` |
 | `[[pages]]` | `id`, `title` | `content`, `action_label`, `action_on_click` |
